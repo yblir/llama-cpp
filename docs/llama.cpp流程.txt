@@ -22,7 +22,7 @@ build/bin/llama-cli -m /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct-Q
 上下文管理，像chatgpt一样
 build/bin/llama-cli -m /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct-Q4_km.gguf --color -p "You are a helpful assistant" -cnv
 
-build/bin/llama-cli -m /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct-Q4_km.gguf -n 256 --repeat_penalty 1.0 --color -i -r "User:" -f prompts/chat-with-bob.txt
+build/bin/llama-cli -m /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct-Q4_km.gguf -n 256 --repeat_penalty 1.0 -ngl 32 --color -i -r "User:" -f prompts/chat-with-bob.txt
 
 注意-ngl,使得模型在GPU上运行
 -m /media/xk/D6B8A862B8A8433B/llama-2-7b.Q2_K.gguf -n 256 --repeat_penalty 1.0 -ngl 32 --color -i -r "User:" -f /media/xk/D6B8A862B8A8433B/GitHub/llama-cpp/prompts/chat-with-bob.txt
