@@ -1,0 +1,29 @@
+1. 编译
+cmake -B build
+cmake --build build --config Release -j16
+
+debug模式
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -j16
+
+在clion的cmake选项中添加 -DGGML_CUDA=ON，开启cuda编译，这样才能在GPU上运行
+
+2. 转换hf到gg格式
+python convert_hf_to_gguf.py /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct --outfile  /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct.gguf
+
+3. 量化, Q4_K_M不能写错
+build/bin/llama-quantize /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct.gguf /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct-Q4_km.gguf Q4_K_M
+
+4. 测试
+build/bin/llama-cli -m /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct-Q4_km.gguf -c 512 -b 64 -n 256 -t 8 --repeat_penalty 1.1 --top_k 50 --top_p 0.6 --color -i -r "助手:" -f prompts/chat-with-baichuan.txt
+
+build/bin/llama-cli -m /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct-Q4_km.gguf -p "I believe the meaning of life is" -n 128
+
+上下文管理，像chatgpt一样
+build/bin/llama-cli -m /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct-Q4_km.gguf --color -p "You are a helpful assistant" -cnv
+
+build/bin/llama-cli -m /mnt/e/PyCharm/PreTrainModel/Meta-Llama-3.1-8B-Instruct-Q4_km.gguf -n 256 --repeat_penalty 1.0 --color -i -r "User:" -f prompts/chat-with-bob.txt
+
+注意-ngl,使得模型在GPU上运行
+-m /media/xk/D6B8A862B8A8433B/llama-2-7b.Q2_K.gguf -n 256 --repeat_penalty 1.0 -ngl 32 --color -i -r "User:" -f /media/xk/D6B8A862B8A8433B/GitHub/llama-cpp/prompts/chat-with-bob.txt
+
