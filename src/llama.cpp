@@ -4291,11 +4291,11 @@ struct llama_model_loader {
 
     llama_model_loader(const std::string & fname, bool use_mmap, bool check_tensors, const struct llama_model_kv_override * param_overrides_p) {
         int trace = 0;
-        if (getenv("LLAMA_TRACE")) {
+        if (getenv("LLAMA_TRACE")) {    // pass
             trace = atoi(getenv("LLAMA_TRACE"));
         }
 
-        if (param_overrides_p != nullptr) {
+        if (param_overrides_p != nullptr) { // pass
             for (const struct llama_model_kv_override * p = param_overrides_p; p->key[0] != 0; p++) {
                 kv_overrides.insert({std::string(p->key), *p});
             }
@@ -4306,21 +4306,21 @@ struct llama_model_loader {
             /*.no_alloc = */ true,
             /*.ctx      = */ &ctx,
         };
-
+        // 加载gguf权重文件
         meta = gguf_init_from_file(fname.c_str(), params);
         if (!meta) {
             throw std::runtime_error(format("%s: failed to load model from %s\n", __func__, fname.c_str()));
         }
 
         get_key(llm_kv(LLM_KV_GENERAL_ARCHITECTURE), arch_name, false);
-        llm_kv = LLM_KV(llm_arch_from_string(arch_name));   // llm_kv: LLM_ARCH_QWEN2
-
+        llm_kv = LLM_KV(llm_arch_from_string(arch_name));   // llm_kv: 当前模型结构,如LLM_ARCH_QWEN2
+        // 加载模型权重
         files.emplace_back(new llama_file(fname.c_str(), "rb"));
         contexts.emplace_back(ctx);
 
         // Save tensors data offset of the main file.
         // For subsidiary files, `meta` tensor data offset must not be used,
-        // so we build a unified tensors index for weights.
+        // so we build a unified tensors index for weights. 为权重建立索引
         for (ggml_tensor * cur = ggml_get_first_tensor(ctx); cur; cur = ggml_get_next_tensor(ctx, cur)) {
             weights.emplace_back(files.back().get(), 0, cur->name, meta, cur);
         }
@@ -4381,8 +4381,8 @@ struct llama_model_loader {
             LLAMA_LOG_INFO("%s: additional %d GGUFs metadata loaded.\n",  __func__, n_split - 1);
         }
 
-        n_kv      = gguf_get_n_kv(meta);
-        n_tensors = weights.size();
+        n_kv      = gguf_get_n_kv(meta);    // 统计kv的数量
+        n_tensors = weights.size();         // 统计子权重的数量
 
         fver = (enum llama_fver) gguf_get_version(meta);
 
@@ -4396,7 +4396,7 @@ struct llama_model_loader {
             if (found != tensor_names.end()) {
                 throw std::runtime_error(format("invalid model: tensor '%s' is duplicated", w.tensor->name));
             }
-            tensor_names.insert(name);
+            tensor_names.insert(name);  // 把每个权重的key放入tensor_names
         }
 
         LLAMA_LOG_INFO("%s: loaded meta data with %d key-value pairs and %d tensors from %s (version %s)\n",
@@ -4415,10 +4415,10 @@ struct llama_model_loader {
                 enum ggml_type type = tensor->type;
 
                 n_type[type]++;
-
+                // 未量化的模型只有一种类型,但经过量化的模型有多个,如激活值fp32, 权重fp4等
                 if (n_type_max < n_type[type]) {
-                    n_type_max = n_type[type];
-                    type_max   = type;
+                    n_type_max = n_type[type];  // 记录当前类型的最大数量
+                    type_max   = type;          // 更新最大数量对应的张量类型
                 }
 
                 if (trace > 0) {
@@ -4426,7 +4426,7 @@ struct llama_model_loader {
                     LLAMA_LOG_INFO("%s: - tensor %4d, split %2d: %32s %-8s [ %s ]\n", __func__, i, sid, ggml_get_name(tensor), ggml_type_name(type), llama_format_tensor_shape(tensor).c_str());
                 }
             }
-
+            // 找出数量最多的权重类型,如 LLAMA_FTYPE_MOSTLY_Q4_K_M
             switch (type_max) {
                 case GGML_TYPE_F32:     ftype = LLAMA_FTYPE_ALL_F32;        break;
                 case GGML_TYPE_F16:     ftype = LLAMA_FTYPE_MOSTLY_F16;     break;
@@ -4463,17 +4463,17 @@ struct llama_model_loader {
             }
 
             // this is a way to mark that we have "guessed" the file type
-            ftype = (llama_ftype) (ftype | LLAMA_FTYPE_GUESSED);
+            ftype = (llama_ftype) (ftype | LLAMA_FTYPE_GUESSED);    //todo 1039是什么东西?
 
             {
                 const int kid = gguf_find_key(meta, "general.file_type"); // TODO: use LLM_KV
                 if (kid >= 0) {
-                    ftype = (llama_ftype) gguf_get_val_u32(meta, kid);
+                    ftype = (llama_ftype) gguf_get_val_u32(meta, kid);  // ftype=LLAMA_FTYPE_MOSTLY_Q4_K_M 干嘛用的?
                 }
             }
 
             LLAMA_LOG_INFO("%s: Dumping metadata keys/values. Note: KV overrides do not apply in this output.\n", __func__);
-
+            // 这个for循环,仅仅为了信息打印, 没其他作用了
             for (int i = 0; i < n_kv; i++) {
                 const char * name           = gguf_get_key(meta, i);
                 const enum gguf_type type   = gguf_get_kv_type(meta, i);
@@ -4492,7 +4492,7 @@ struct llama_model_loader {
                 LLAMA_LOG_INFO("%s: - kv %3d: %42s %-16s = %s\n", __func__, i, name, type_name.c_str(), value.c_str());
             }
 
-            // print type counts
+            // 这个for,打印模型中权重各类型名和数量
             for (auto & kv : n_type) {
                 if (kv.second == 0) {
                     continue;
@@ -4501,7 +4501,7 @@ struct llama_model_loader {
                 LLAMA_LOG_INFO("%s: - type %4s: %4d tensors\n", __func__, ggml_type_name(kv.first), kv.second);
             }
         }
-
+        // 走不到这个if
         if (!llama_mmap::SUPPORTED) {
             LLAMA_LOG_WARN("%s: mmap is not supported on this platform\n", __func__);
             use_mmap = false;
@@ -5235,7 +5235,7 @@ static const char * llama_model_vocab_type_name(enum llama_vocab_type type){
 }
 
 static void llm_load_arch(llama_model_loader & ml, llama_model & model) {
-    model.arch = ml.get_arch();
+    model.arch = ml.get_arch(); //model.arch=LLM_ARCH_LLAMA
     if (model.arch == LLM_ARCH_UNKNOWN) {
         throw std::runtime_error("unknown model architecture: '" + ml.get_arch_name() + "'");
     }
@@ -5248,7 +5248,7 @@ static void llm_load_hparams(
     const gguf_context * ctx = ml.meta;
 
     // get metadata as string
-    for (int i = 0; i < gguf_get_n_kv(ctx); i++) {
+    for (int i = 0; i < gguf_get_n_kv(ctx); i++) {  // 29项描述模型各项指标的参数
         enum gguf_type type = gguf_get_kv_type(ctx, i);
         if (type == GGUF_TYPE_ARRAY) {
             continue;
@@ -5274,7 +5274,7 @@ static void llm_load_hparams(
     ml.get_key(LLM_KV_BLOCK_COUNT,       hparams.n_layer);
     ml.get_key(LLM_KV_EXPERT_COUNT,      hparams.n_expert,      false);
     ml.get_key(LLM_KV_EXPERT_USED_COUNT, hparams.n_expert_used, false);
-
+    //assert 参数校验
     GGML_ASSERT(hparams.n_expert <= LLAMA_MAX_EXPERTS);
     GGML_ASSERT(hparams.n_expert_used <= hparams.n_expert);
     if (hparams.n_expert > 0) {
@@ -5283,7 +5283,7 @@ static void llm_load_hparams(
         GGML_ASSERT(hparams.n_expert_used == 0);
     }
 
-    // zero-out the per-layer hparams
+    // zero-out the per-layer hparams vector数组0填充
     std::fill(hparams.n_head_arr.begin(),    hparams.n_head_arr.end(),    0);
     std::fill(hparams.n_head_kv_arr.begin(), hparams.n_head_kv_arr.end(), 0);
     std::fill(hparams.n_ff_arr.begin(),      hparams.n_ff_arr.end(),      0);
@@ -6245,7 +6245,7 @@ static void llm_load_vocab(
     if (toktype_idx != -1) {
         toktypes = (const int * ) gguf_get_arr_data(ctx, toktype_idx);
     }
-
+    // 处理词表中每一个词
     const uint32_t n_vocab = gguf_get_arr_n(ctx, token_idx);
 
     vocab.n_vocab = n_vocab;
@@ -8603,7 +8603,7 @@ static int llama_model_load(const std::string & fname, llama_model & model, llam
         model.hparams.vocab_only = params.vocab_only;
 
         try {
-            llm_load_arch(ml, model);
+            llm_load_arch(ml, model);   // 将ml的模型名赋值给model.arch(LLM_ARCH_LLAMA)
         } catch(const std::exception & e) {
             throw std::runtime_error("error loading model architecture: " + std::string(e.what()));
         }

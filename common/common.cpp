@@ -732,7 +732,7 @@ struct llama_init_result llama_init_from_gpt_params(gpt_params & params) {
         model = llama_load_model_from_hf(params.hf_repo.c_str(), params.hf_file.c_str(), params.model.c_str(), params.hf_token.c_str(), mparams);
     } else if (!params.model_url.empty()) {
         model = llama_load_model_from_url(params.model_url.c_str(), params.model.c_str(), params.hf_token.c_str(), mparams);
-    } else {
+    } else {    // 通常只会用gguf格式的模型
         model = llama_load_model_from_file(params.model.c_str(), mparams);
     }
 
