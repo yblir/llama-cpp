@@ -4313,7 +4313,7 @@ struct llama_model_loader {
         }
 
         get_key(llm_kv(LLM_KV_GENERAL_ARCHITECTURE), arch_name, false);
-        llm_kv = LLM_KV(llm_arch_from_string(arch_name));
+        llm_kv = LLM_KV(llm_arch_from_string(arch_name));   // llm_kv: LLM_ARCH_QWEN2
 
         files.emplace_back(new llama_file(fname.c_str(), "rb"));
         contexts.emplace_back(ctx);
@@ -16072,11 +16072,13 @@ static int llama_decode_internal(
     lctx.is_encoding = false;
     const uint32_t n_tokens_all = batch_all.n_tokens;
 
+    // 预热阶段为2，prefill阶段为prompt长度（来自user的每一问句是一个prompt），decode阶段
+    // 为1，n_tokens_all不可能出现=0的情况，写在这里是为鲁棒性
     if (n_tokens_all == 0) {
         LLAMA_LOG_ERROR("%s: n_tokens == 0", __func__);
         return -1;
     }
-
+    // 检验token的合法性，不能为负值，不能超出词表长度
     for (uint32_t i = 0; i < n_tokens_all; ++i) {
         if (batch_all.token[i] < 0 || (uint32_t)batch_all.token[i] >= lctx.model.vocab.n_vocab) {
             LLAMA_LOG_ERROR("%s: invalid token[%d] = %d", __func__, i, batch_all.token[i]);
@@ -16088,12 +16090,12 @@ static int llama_decode_internal(
     const auto & hparams = model.hparams;
     const auto & cparams = lctx.cparams;
 
+    //参数校验
     GGML_ASSERT((!batch_all.token && batch_all.embd) || (batch_all.token && !batch_all.embd)); // NOLINT
-
     GGML_ASSERT(n_tokens_all <= cparams.n_batch);
-
     GGML_ASSERT((cparams.causal_attn || cparams.n_ubatch >= n_tokens_all) && "non-causal attention requires n_ubatch >= n_tokens");
 
+    //计时相关
     if (lctx.t_compute_start_us == 0) {
         lctx.t_compute_start_us = ggml_time_us();
     }
@@ -16130,12 +16132,12 @@ static int llama_decode_internal(
         /* simple_split */ !kv_self.recurrent,
         /* logits_all   */ n_outputs == n_tokens_all);
 
-    // reserve output buffer
+    // llama_output_reserve：返回已预留空间的最大输出数量，有多少输出就设置多大的输出空间，不浪费，这里只是鲁棒性检测
     if (llama_output_reserve(lctx, n_outputs) < n_outputs) {
         LLAMA_LOG_ERROR("%s: could not reserve space for batch with %u outputs\n", __func__, n_outputs);
         return -2;
     };
-
+    // while会一直循环，直到所有tokens都被推理完，即lctx.sbatch.n_tokens==0
     while (lctx.sbatch.n_tokens > 0) {
         llama_ubatch ubatch;
         if (kv_self.recurrent) {

@@ -796,7 +796,7 @@ struct llama_init_result llama_init_from_gpt_params(gpt_params & params) {
         fprintf(stderr, "%s: warning: model does not have an EOS token, ignoring --ignore-eos\n", __func__);
         params.sparams.ignore_eos = false;
     }
-
+    // 模型预热
     if (params.warmup) {
         LOG("warming up the model with an empty run\n");
 
