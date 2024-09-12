@@ -16099,7 +16099,7 @@ static int llama_decode_internal(
     if (lctx.t_compute_start_us == 0) {
         lctx.t_compute_start_us = ggml_time_us();
     }
-    lctx.n_queued_tokens += n_tokens_all;
+    lctx.n_queued_tokens += n_tokens_all;   // 预热阶段n_tokens_all=2，prefill阶段为prompt长度，解码阶段为1
 
     auto & kv_self = lctx.kv_self;
 
@@ -16124,7 +16124,7 @@ static int llama_decode_internal(
     } else if (lctx.logits_all || embd_pooled) {
         n_outputs = n_tokens_all;
     } else {
-        // keep last output only
+        // keep last output only, 不论哪个阶段，输出长度都为1
         n_outputs = 1;
     }
 
@@ -16204,13 +16204,13 @@ static int llama_decode_internal(
 
         ggml_backend_sched_reset(lctx.sched);
         ggml_backend_sched_set_eval_callback(lctx.sched, lctx.cparams.cb_eval, lctx.cparams.cb_eval_user_data);
-
+        // 构建推理 计算图
         ggml_cgraph * gf = llama_build_graph(lctx, ubatch, false);
 
         // the output is always the last tensor in the graph
         struct ggml_tensor * res  = gf->nodes[gf->n_nodes - 1];
         struct ggml_tensor * embd = gf->nodes[gf->n_nodes - 2];
-
+        //
         if (lctx.n_outputs == 0) {
             // no output
             res  = nullptr;

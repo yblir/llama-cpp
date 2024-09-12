@@ -158,6 +158,8 @@ static void rms_norm_f32_cuda(const float * x, float * dst, const int ncols, con
         const dim3 block_dims(WARP_SIZE, 1, 1);  //(32,1,1)
         //所以调用的cuda的gridDim =(nrows,1,1) ,blockDim = (32,1,1)
         //也就是说一个block处理一个row的数据，即每32个线程处理一行数据 ，共计nrows行
+        // 网格中线程块的数量为nrows，每个线程块中的线程数量block_dims, 内核调用中的共享内存大小
+        // 指定内核函数执行的流stream
         rms_norm_f32<WARP_SIZE><<<nrows, block_dims, 0, stream>>>(x, dst, ncols, eps);
     } else {
         const dim3 block_dims(1024, 1, 1);

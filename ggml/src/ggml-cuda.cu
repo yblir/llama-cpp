@@ -1173,8 +1173,8 @@ static void ggml_mul_mat_p021_f16_f32_cuda(
     const void * vx, const float * y, float * dst, const int ncols_x, const int nrows_x,
     const int nchannels_x, const int nchannels_y, cudaStream_t stream) {
 
-    const dim3 block_nums(1, nrows_x, nchannels_y);
-    const dim3 block_dims(WARP_SIZE, 1, 1);
+    const dim3 block_nums(1, nrows_x, nchannels_y); // {1,seq_len,32}
+    const dim3 block_dims(WARP_SIZE, 1, 1);         // {32,1,1}
     mul_mat_p021_f16_f32<<<block_nums, block_dims, 0, stream>>>(vx, y, dst, ncols_x, nrows_x, nchannels_x, nchannels_y);
 }
 

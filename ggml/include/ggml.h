@@ -600,7 +600,7 @@ extern "C" {
         //比如[batch_size,multi-head,seq_len,head-dim]
          //他的存储方式是ne[0]=head-dim,ne[1]=seq_len,ne[2]=multi-head,ne[3]=batch_size
         int64_t ne[GGML_MAX_DIMS]; // number of elements
-        size_t  nb[GGML_MAX_DIMS]; // stride in bytes:
+        size_t  nb[GGML_MAX_DIMS]; // // 每个维度的步幅（stride）
                                    // nb[0] = ggml_type_size(type)
                                    // nb[1] = nb[0]   * (ne[0] / ggml_blck_size(type)) + padding
                                    // nb[i] = nb[i-1] * ne[i-1]
