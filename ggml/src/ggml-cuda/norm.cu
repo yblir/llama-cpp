@@ -99,7 +99,10 @@ static __global__ void group_norm_f32(const float * x, float * dst, const int gr
 
 template <int block_size>
 static __global__ void rms_norm_f32(const float * x, float * dst, const int ncols, const float eps) {
+    // row: 计算在该网格中,row的全局索引,即该seq中第几个token
     const int row = blockIdx.x*blockDim.y + threadIdx.y;
+    // 每个block内线程的索引(0-32), 每个线程都会执行rms_norm_f32,
+    // 所以每个线程中的tid是不同的, 每个row有32个线程
     const int tid = threadIdx.x;
 
     float tmp = 0.0f; // partial sum for thread in warp
@@ -110,6 +113,9 @@ static __global__ void rms_norm_f32(const float * x, float * dst, const int ncol
     }
 
     // sum up partial sums
+    // 现在 上面的temp是该线程中的temp(存放在该线程寄存器中),要与该block中其他显存
+    // 的temp再求和,之后才是当前token的所有元素的平方和
+    // todo 会等待所有显存都完成后再进行规约求和
     tmp = warp_reduce_sum(tmp);
     if (block_size > WARP_SIZE) {
         __shared__ float s_sum[32];
@@ -124,6 +130,7 @@ static __global__ void rms_norm_f32(const float * x, float * dst, const int ncol
     }
 
     const float mean = tmp / ncols;
+    // 平方根的倒数
     const float scale = rsqrtf(mean + eps);
     //算完之后写回原数组
     for (int col = tid; col < ncols; col += block_size) {
@@ -157,7 +164,7 @@ static void rms_norm_f32_cuda(const float * x, float * dst, const int ncols, con
     if (ncols < 1024) {
         const dim3 block_dims(WARP_SIZE, 1, 1);  //(32,1,1)
         //所以调用的cuda的gridDim =(nrows,1,1) ,blockDim = (32,1,1)
-        //也就是说一个block处理一个row的数据，即每32个线程处理一行数据 ，共计nrows行
+        //也就是说一个block处理一行(row,每行是一个token,维度为4096或128之类)的数据，即每32个线程处理一行数据 ，共计nrows行
         // 网格中线程块的数量为nrows，每个线程块中的线程数量block_dims, 内核调用中的共享内存大小
         // 指定内核函数执行的流stream
         rms_norm_f32<WARP_SIZE><<<nrows, block_dims, 0, stream>>>(x, dst, ncols, eps);
