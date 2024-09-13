@@ -1066,9 +1066,9 @@ static __global__ void mul_mat_p021_f16_f32(
     const int ncols_x, const int nrows_x, const int nchannels_x, const int nchannels_y) {
 
     const half * x = (const half *) vx; //vx就是K cache
-    //这个维度是seq_len 的索引，[0,..,seq_len-1]
+    //这个维度是seq_len 的索引，[0,..,seq_len-1]，标记每个token
     const int row_x = blockDim.y*blockIdx.y + threadIdx.y;
-    //这个维度是multi head的索引[0,1,2..,31]
+    //这个维度是multi head的索引[0,1,2..,31]，表示正在处理的是第几个head
     const int channel = blockDim.z*blockIdx.z + threadIdx.z;
     //这个是对于GQA的时候用的，就是Q分组共享K cache
     const int channel_x = channel / (nchannels_y / nchannels_x);
@@ -1172,17 +1172,20 @@ static __global__ void mul_mat_vec_nc_f16_f32( // nc == non-contiguous
 static void ggml_mul_mat_p021_f16_f32_cuda(
     const void * vx, const float * y, float * dst, const int ncols_x, const int nrows_x,
     const int nchannels_x, const int nchannels_y, cudaStream_t stream) {
-
-    const dim3 block_nums(1, nrows_x, nchannels_y); // {1,seq_len,32}
-    const dim3 block_dims(WARP_SIZE, 1, 1);         // {32,1,1}
+    // {1,seq_len,32}, 相乘时，q.shape=(b,32, seq_len, 128), k.shape=(b,32,128, seq_len)
+    // block_nums含义是，每条seq的每个head，有1个block负责处理。nrows_x=128,nchannels_y=32
+    const dim3 block_nums(1, nrows_x, nchannels_y);
+    // {32,1,1}， 每个block中有32个线程，处理每个head的128个数据
+    const dim3 block_dims(WARP_SIZE, 1, 1);
     mul_mat_p021_f16_f32<<<block_nums, block_dims, 0, stream>>>(vx, y, dst, ncols_x, nrows_x, nchannels_x, nchannels_y);
 }
 
 static void ggml_mul_mat_vec_nc_f16_f32_cuda(
     const void * vx, const float * y, float * dst, const int ncols_x, const int nrows_x, const int row_stride_x,
     const int nchannels_x, const int nchannels_y, const int channel_stride_x, cudaStream_t stream) {
-
+    // gridDim=(1,128,32)
     const dim3 block_nums(1, nrows_x, nchannels_y);
+    // blockDim=(32,1,1)
     const dim3 block_dims(WARP_SIZE, 1, 1);
     mul_mat_vec_nc_f16_f32<<<block_nums, block_dims, 0, stream>>>
         (vx, y, dst, ncols_x, nrows_x, row_stride_x, channel_stride_x, nchannels_y/nchannels_x);

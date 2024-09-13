@@ -16167,7 +16167,7 @@ static int llama_decode_internal(
                 }
             }
 
-            // needs to happen before the graph is built
+            // needs to happen before the graph is built 输出通常都会为1
             lctx.n_outputs = n_outputs_new;
         }
 

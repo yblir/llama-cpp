@@ -843,7 +843,7 @@ int main(int argc, char ** argv) {
 
                 std::string line;
                 bool another_line = true;
-                do {
+                do {    // 外部交互式输入
                     another_line = console::readline(line, params.multiline_input);
                     buffer += line;
                 } while (another_line);

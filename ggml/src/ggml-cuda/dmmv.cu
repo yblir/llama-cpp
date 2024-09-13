@@ -437,16 +437,16 @@ static __global__ void dequantize_mul_mat_vec(const void * __restrict__ vx, cons
     constexpr int qk = ggml_cuda_type_traits<type>::qk; // quantized weights per x block
     constexpr int qr = ggml_cuda_type_traits<type>::qr; // number of quantized weights per data value in x block
     constexpr dequantize_kernel_t dequantize_kernel = get_dequantize_kernel(type);
-
+    // 0-4095
     const int64_t row = (int64_t)blockIdx.x*blockDim.y + threadIdx.y;
 
     if (row >= nrows) {
         return;
     }
 
-    const int tid = threadIdx.x;
+    const int tid = threadIdx.x;    //0-31
 
-    const int iter_stride = 2*GGML_CUDA_DMMV_X;
+    const int iter_stride = 2*GGML_CUDA_DMMV_X; //2*32
     const int vals_per_iter = iter_stride / WARP_SIZE; // num quantized vals per thread and i iter
     const int y_offset = qr == 1 ? 1 : qk/2;
 
@@ -548,8 +548,8 @@ static void dequantize_mul_mat_vec_q5_1_cuda(const void * vx, const dfloat * y, 
 static void dequantize_mul_mat_vec_q8_0_cuda(const void * vx, const dfloat * y, float * dst, const int ncols, const int nrows, cudaStream_t stream) {
     GGML_ASSERT(ncols % (GGML_CUDA_DMMV_X*2) == 0);
     const int block_num_y = (nrows + GGML_CUDA_MMV_Y - 1) / GGML_CUDA_MMV_Y;
-    const dim3 block_nums(block_num_y, 1, 1);
-    const dim3 block_dims(WARP_SIZE, GGML_CUDA_MMV_Y, 1);
+    const dim3 block_nums(block_num_y, 1, 1);   // (1,4096,1)
+    const dim3 block_dims(WARP_SIZE, GGML_CUDA_MMV_Y, 1);   // (32,1,1)
     dequantize_mul_mat_vec<GGML_TYPE_Q8_0>
         <<<block_nums, block_dims, 0, stream>>>(vx, y, dst, ncols, nrows);
 }
