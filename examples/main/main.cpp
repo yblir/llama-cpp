@@ -151,7 +151,7 @@ int main(int argc, char ** argv) {
     log_dump_cmdline(argc, argv);
     llama_log_set(llama_log_callback_logTee, nullptr);
 #endif // LOG_DISABLE_LOGS
-
+// *****************************************************************************************************************************************
     // TODO: Dump params ?
     //LOG("Params perplexity: %s\n", LOG_TOSTR(params.perplexity));
 
@@ -196,7 +196,7 @@ int main(int argc, char ** argv) {
     LOG("%s: llama backend init\n", __func__);
     llama_backend_init();
     llama_numa_init(params.numa);
-
+// *****************************************************************************************************************************************
     llama_model * model = nullptr;
     llama_context * ctx = nullptr;
     gpt_sampler * smpl = nullptr;

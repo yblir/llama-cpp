@@ -727,7 +727,7 @@ struct llama_init_result llama_init_from_gpt_params(gpt_params & params) {
     auto mparams = llama_model_params_from_gpt_params(params);
 
     llama_model * model = nullptr;
-
+    // 1. 加载模型
     if (!params.hf_repo.empty() && !params.hf_file.empty()) {
         model = llama_load_model_from_hf(params.hf_repo.c_str(), params.hf_file.c_str(), params.model.c_str(), params.hf_token.c_str(), mparams);
     } else if (!params.model_url.empty()) {
@@ -742,7 +742,7 @@ struct llama_init_result llama_init_from_gpt_params(gpt_params & params) {
     }
 
     auto cparams = llama_context_params_from_gpt_params(params);
-
+    // 2. 构建llama的上下文管理器, 包含kv,embed_size等各种乱七八糟的参数
     llama_context * lctx = llama_new_context_with_model(model, cparams);
     if (lctx == NULL) {
         fprintf(stderr, "%s: error: failed to create context with model '%s'\n", __func__, params.model.c_str());
@@ -796,7 +796,7 @@ struct llama_init_result llama_init_from_gpt_params(gpt_params & params) {
         fprintf(stderr, "%s: warning: model does not have an EOS token, ignoring --ignore-eos\n", __func__);
         params.sparams.ignore_eos = false;
     }
-    // 模型预热
+    // 3. 模型预热
     if (params.warmup) {
         LOG("warming up the model with an empty run\n");
 
@@ -823,9 +823,11 @@ struct llama_init_result llama_init_from_gpt_params(gpt_params & params) {
             tmp.clear();
             tmp.push_back(decoder_start_token_id);
         }
+        // 4. 模型预热会在走这个下面的if,传入的token有2个,bos,eos
         if (llama_model_has_decoder(model)) {
             llama_decode(lctx, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch), 0, 0));
         }
+        // 5. 预热后,情况设置
         llama_kv_cache_clear(lctx);
         llama_synchronize(lctx);
         llama_perf_reset(lctx, LLAMA_PERF_TYPE_CONTEXT);
