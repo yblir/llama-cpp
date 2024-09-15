@@ -303,6 +303,7 @@ int main(int argc, char ** argv) {
     }
     LOG("add_bos: %d\n", add_bos);
 
+    // 模型输入数据处理
     std::vector<llama_token> embd_inp;
 
     {

@@ -15256,12 +15256,13 @@ static struct ggml_cgraph * llama_build_graph(
 
     // this callback allows us to apply custom logic to each tensor (e.g. ggml-alloc, offloading, etc.)
     llm_build_cb cb = [&](struct ggml_tensor * cur, const char * name, int il) {
+        // 根据条件设置张量的名称
         if (il >= 0) {
             ggml_format_name(cur, "%s-%d", name, il);
         } else {
             ggml_set_name(cur, name);
         }
-
+        // 根据特定条件设置张量的计算后端
         if (!lctx.cparams.offload_kqv) {
             if (strcmp(name, "kqv_merged_cont") == 0) {
                 // all nodes between the KV store and the attention output are run on the CPU
